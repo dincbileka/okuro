@@ -7,45 +7,47 @@ import { useRouter } from "next/navigation";
 export default function BookActions({ book }: { book: any }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState<string | null>(null); // Kullanıcının rafında var mı?
+  const [favLoading, setFavLoading] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+  const [isFavorite, setIsFavorite] = useState(false);
   const [user, setUser] = useState<any>(null);
 
-  // 1. Sayfa açılınca: Kullanıcı giriş yapmış mı ve bu kitabı daha önce eklemiş mi?
+  // 1. Sayfa açılınca: Kullanıcı kim ve durumu ne?
   useEffect(() => {
     const checkUserBook = async () => {
+      // DÜZELTME BURADA: getSession yerine direkt getUser ile en güncel veriyi alıyoruz
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
 
       if (user) {
-        // user_books tablosuna bak: Benim ID'mle bu Kitap ID'si eşleşen kayıt var mı?
         const { data } = await supabase
           .from("user_books")
-          .select("status")
+          .select("status, is_favorite")
           .eq("user_id", user.id)
           .eq("book_id", book.id)
           .single();
         
-        if (data) setStatus(data.status);
+        if (data) {
+          setStatus(data.status);
+          setIsFavorite(data.is_favorite);
+        }
       }
     };
     checkUserBook();
   }, [book.id]);
 
+  // --- LİSTEYE EKLEME ---
   const handleSave = async () => {
-    // Giriş yapmamışsa uyarı ver ve login'e at
     if (!user) {
-      if (confirm("Listenize eklemek için giriş yapmalısınız. Giriş sayfasına gidilsin mi?")) {
-        router.push("/login");
-      }
+      if (confirm("Listenize eklemek için giriş yapmalısınız. Giriş sayfasına gidilsin mi?")) router.push("/login");
       return;
     }
 
     setLoading(true);
 
     try {
-      // ADIM A: Kitabı GENEL DEPOYA (books) "Güvenli" Ekle
-      // 'ignoreDuplicates: true' sayesinde varsa hata vermez, yoksa ekler.
-      const { error: bookError } = await supabase.from("books").upsert({
+      // 1. Kitap yoksa havuza ekle
+      await supabase.from("books").upsert({
           id: book.id,
           title: book.title,
           author: book.author,
@@ -56,41 +58,98 @@ export default function BookActions({ book }: { book: any }) {
           publisher: book.publisher,
           published_date: book.published_date,
           page_count: book.page_count
-        }, 
-        { onConflict: 'id', ignoreDuplicates: true }
-      );
+        }, { onConflict: 'id', ignoreDuplicates: true });
 
-      if (bookError) throw bookError;
+      // 2. Kullanıcı rafına ekle (Mevcut favori durumunu korumak lazım)
+      // En güvenli yol: Önce var mı diye bak, varsa update, yoksa insert.
+      
+      const { data: existing } = await supabase
+        .from("user_books")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("book_id", book.id)
+        .single();
 
-      // ADIM B: Kitabı benim 'user_books' tabloma bağla (Zimmetle)
-      const { error: userBookError } = await supabase.from("user_books").upsert({
-        user_id: user.id,
-        book_id: book.id,
-        status: 'want_to_read'
-      });
+      if (existing) {
+         await supabase.from("user_books").update({ status: 'want_to_read' }).eq("id", existing.id);
+      } else {
+         await supabase.from("user_books").insert({
+           user_id: user.id,
+           book_id: book.id,
+           status: 'want_to_read',
+           is_favorite: false
+         });
+      }
 
-      if (userBookError) throw userBookError;
-
-      // Başarılı olursa butonu güncelle
       setStatus('want_to_read');
-      // alert("Kitap rafınıza eklendi! 📚"); // İstersen açabilirsin
 
     } catch (error: any) {
-      // --- DEBUG BLOĞU ---
-      // Hata boş {} geliyorsa içini açıp bakalım
-      console.error("HAM HATA:", error);
-      console.error("DETAYLI HATA:", JSON.stringify(error, null, 2));
-      
-      const errorMsg = error.message || error.details || error.hint || "Bilinmeyen hata (Konsola bak)";
-      alert("Bir sorun oluştu: " + errorMsg);
-      
+      console.error("Hata:", error);
+      alert("Hata: " + error.message);
     } finally {
       setLoading(false);
     }
   };
 
+  // --- FAVORİ (KALP) ---
+  const handleToggleFavorite = async () => {
+    if (!user) {
+      if (confirm("Favorilere eklemek için giriş yapmalısınız. Giriş sayfasına gidilsin mi?")) router.push("/login");
+      return;
+    }
+
+    setFavLoading(true);
+    const newFavStatus = !isFavorite;
+
+    try {
+      // 1. Kitap havuzda var mı? (Garanti olsun)
+      await supabase.from("books").upsert({
+        id: book.id,
+        title: book.title,
+        author: book.author,
+        cover_url: book.cover_url,
+        normalized_title: book.title.toLowerCase(),
+      }, { onConflict: 'id', ignoreDuplicates: true });
+
+      // 2. user_books güncelle
+      const { data: existing } = await supabase
+        .from("user_books")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("book_id", book.id)
+        .single();
+
+      if (existing) {
+        // Kayıt varsa sadece favoriyi güncelle
+        await supabase
+          .from("user_books")
+          .update({ is_favorite: newFavStatus })
+          .eq("id", existing.id);
+      } else {
+        // Kayıt yoksa yeni oluştur
+        await supabase.from("user_books").insert({
+          user_id: user.id,
+          book_id: book.id,
+          status: 'want_to_read', // Varsayılan durum
+          is_favorite: newFavStatus
+        });
+        setStatus('want_to_read');
+      }
+
+      // 3. Ekranı güncelle
+      setIsFavorite(newFavStatus);
+
+    } catch (error: any) {
+      console.error("Favori hatası:", error);
+      alert("Hata: " + error.message);
+    } finally {
+      setFavLoading(false);
+    }
+  };
+
   return (
     <div className="flex gap-4">
+      {/* EKLE BUTONU */}
       <button
         onClick={handleSave}
         disabled={loading || !!status} 
@@ -102,18 +161,21 @@ export default function BookActions({ book }: { book: any }) {
           ${loading ? "opacity-70 cursor-not-allowed" : ""}
         `}
       >
-        {loading ? (
-          "İşleniyor..."
-        ) : status ? (
-          <>✓ Rafınızda Ekli</>
-        ) : (
-          <>📚 Listeme Ekle</>
-        )}
+        {loading ? "..." : status ? <>✓ Rafınızda Ekli</> : <>📚 Listeme Ekle</>}
       </button>
 
-      {/* Favori butonu (şimdilik görsel) */}
-      <button className="px-4 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition text-2xl border border-gray-600">
-        ❤️
+      {/* ❤️ FAVORİ BUTONU */}
+      <button 
+        onClick={handleToggleFavorite}
+        disabled={favLoading}
+        className={`px-4 py-3 rounded-lg transition text-2xl border flex items-center justify-center
+          ${isFavorite 
+            ? "bg-red-600/20 text-red-500 border-red-600 shadow-lg shadow-red-900/30 scale-105" // Kırmızı
+            : "bg-gray-700 hover:bg-gray-600 text-gray-400 border-gray-600 hover:text-white" // Gri
+          }
+        `}
+      >
+        {favLoading ? <span className="text-sm animate-spin">⌛</span> : (isFavorite ? "❤️" : "🤍")}
       </button>
     </div>
   );
