@@ -1,49 +1,86 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import React from 'react';
+import { Star } from 'lucide-react';
+import { UserBook } from '../types';
+import Link from 'next/link';
 
-export default function BookCard({ book }: { book: any }) {
-  const router = useRouter();
+interface BookCardProps {
+  userBook: UserBook;
+  variant?: 'compact' | 'detailed' | 'shelf';
+}
 
+const BookCard: React.FC<BookCardProps> = ({ userBook, variant = 'detailed' }) => {
+  // GÜVENLİK KONTROLÜ: Eğer userBook veya içindeki book yoksa hiçbir şey gösterme (veya loading göster)
+  if (!userBook || !userBook.book) {
+    return null; // Veya <div className="animate-pulse bg-gray-800 h-32 w-24 rounded"></div>
+  }
+
+  const { book, status, rating } = userBook;
+
+  // Raf Görünümü (Sadece Kapak)
+  if (variant === 'shelf') {
+    return (
+      <Link href={`/book/${book.id}`} className="w-32 shrink-0 snap-start flex flex-col group cursor-pointer">
+        <div className="w-full aspect-[2/3] rounded-md shadow-sm overflow-hidden mb-2 relative bg-gray-800">
+           {book.cover_url ? (
+             <img 
+               src={book.cover_url} 
+               alt={book.title} 
+               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" 
+             />
+           ) : (
+             <div className="w-full h-full flex items-center justify-center text-xs text-gray-500 border border-gray-700">No Img</div>
+           )}
+           
+           {userBook.is_favorite && (
+             <div className="absolute top-2 right-2 bg-yellow-400/90 text-white p-1 rounded-full shadow-sm">
+               <Star size={12} fill="currentColor" />
+             </div>
+           )}
+        </div>
+      </Link>
+    );
+  }
+
+  // Detaylı Liste Görünümü
   return (
-    <div 
-      onClick={() => router.push(`/book/${book.id}`)}
-      className="bg-gray-800 p-6 rounded-lg border border-gray-700 hover:border-blue-500 hover:bg-gray-750 transition cursor-pointer flex gap-4 items-start group relative overflow-hidden"
-    >
-      {/* Tıklama Efekti İçin Görünmez Katman */}
-      <div className="absolute inset-0 z-0 opacity-0 group-hover:opacity-10 bg-blue-500 transition" />
-
-      {/* Resim Alanı */}
-      <div className="z-10 flex-shrink-0">
+    <Link href={`/book/${book.id}`} className="bg-white p-4 rounded-xl shadow-sm border border-stone-100 flex gap-4 transition-all hover:shadow-md block">
+      <div className="w-24 shrink-0 aspect-[2/3] rounded-md overflow-hidden bg-stone-200">
         {book.cover_url ? (
-          <img 
-            src={book.cover_url} 
-            alt={book.title} 
-            className="w-20 h-28 object-cover rounded shadow-lg border border-gray-600"
-            onError={(e) => {
-              // Eğer resim yüklenemezse (kırık link), yedek kutuya dön
-              e.currentTarget.style.display = 'none';
-              e.currentTarget.nextElementSibling?.classList.remove('hidden');
-            }}
-          />
-        ) : null}
+          <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full bg-gray-300 flex items-center justify-center text-xs text-gray-500">No Img</div>
+        )}
+      </div>
+      <div className="flex-1 flex flex-col">
+        <div className="flex justify-between items-start">
+          <div>
+            <h3 className="font-serif font-bold text-lg leading-tight mb-1 text-ink">{book.title}</h3>
+            <p className="text-sm text-stone-500 mb-2">{book.author}</p>
+          </div>
+          {rating && (
+            <div className="flex items-center gap-1 bg-orange-50 px-2 py-1 rounded text-orange-700 text-sm font-medium">
+              <Star size={14} fill="currentColor" />
+              <span>{rating}</span>
+            </div>
+          )}
+        </div>
         
-        {/* Yedek Resim Kutusu (Resim yoksa veya yüklenemezse görünür) */}
-        <div className={`w-20 h-28 bg-gray-700 rounded flex items-center justify-center text-xs text-center p-2 text-gray-400 border border-gray-600 ${book.cover_url ? 'hidden' : ''}`}>
-          Resim Yok
+        {userBook.notes && (
+          <p className="text-sm text-stone-600 line-clamp-2 mt-2 italic bg-stone-50 p-2 rounded border-l-2 border-stone-300">
+            "{userBook.notes}"
+          </p>
+        )}
+
+        <div className="mt-auto pt-3 flex items-center gap-2 text-xs text-stone-400 font-medium uppercase tracking-wider">
+          <span className={`px-2 py-0.5 rounded ${status === 'READ' ? 'bg-green-100 text-green-700' : status === 'CURRENTLY_READING' ? 'bg-blue-100 text-blue-700' : 'bg-stone-100 text-stone-500'}`}>
+            {status ? status.replace(/_/g, ' ') : 'UNKNOWN'}
+          </span>
         </div>
       </div>
-
-      {/* Yazı Alanı */}
-      <div className="z-10 flex-1">
-        <h2 className="text-xl font-bold text-gray-100 group-hover:text-blue-400 transition leading-tight">
-          {book.title}
-        </h2>
-        <p className="text-gray-400 mt-2 text-sm">✍️ {book.author}</p>
-        
-        {/* Debug için ID'yi küçükçe yazalım */}
-        <p className="text-[10px] text-gray-600 mt-4 font-mono">ID: {book.id}</p>
-      </div>
-    </div>
+    </Link>
   );
-}
+};
+
+export default BookCard;

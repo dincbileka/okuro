@@ -17,7 +17,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="tr">
-      {/* GÜNCELLEME BURADA: bg-gray-900 yerine bg-gray-950 yapıldı */}
+      {/* Arka plan rengini burada sabitliyoruz */}
       <body className={`${inter.className} bg-gray-950 text-white min-h-screen font-sans antialiased`}>
         
         {/* Üst Menü (Sabit) */}
