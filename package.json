@@ -9,7 +9,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@google/genai": "^1.30.0",
     "@supabase/supabase-js": "^2.86.0",
+    "lucide-react": "^0.555.0",
     "next": "16.0.4",
     "react": "19.2.0",
     "react-dom": "19.2.0"
