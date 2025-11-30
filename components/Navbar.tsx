@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState } from 'react';
-import { Search, Bell, X, BookOpen } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Bell, X, BookOpen, LogOut, User as UserIcon, Settings, Library } from 'lucide-react';
 import { searchBooksWithGemini } from '../services/geminiService';
 import { Book } from '../types';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { supabase } from "@/lib/supabaseClient";
 
 export const Navbar = () => {
   const router = useRouter();
@@ -13,13 +14,58 @@ export const Navbar = () => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Book[]>([]);
   const [loading, setLoading] = useState(false);
+  
+  // --- YENİ EKLENEN STATE'LER ---
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
+  const [isProfileOpen, setIsProfileOpen] = useState(false); // Profil menüsü açık mı?
+  const [isNotifOpen, setIsNotifOpen] = useState(false);     // Bildirim menüsü açık mı?
+  
+  // Dışarı tıklayınca menüleri kapatmak için ref
+  const profileRef = useRef<HTMLDivElement>(null);
+  const notifRef = useRef<HTMLButtonElement>(null);
+
+  // 1. Profil Resmini Çek
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('avatar_url')
+          .eq('id', session.user.id)
+          .single();
+        
+        if (data?.avatar_url) {
+          setUserAvatar(data.avatar_url);
+        }
+      }
+    };
+    fetchUser();
+
+    // Dışarı tıklama kontrolü
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setIsProfileOpen(false);
+      }
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+        setIsNotifOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // 2. Çıkış Yap Fonksiyonu
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  };
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
-    
     setLoading(true);
-    // Kendi API'miz üzerinden arama yapıyoruz
     const books = await searchBooksWithGemini(query);
     setResults(books);
     setLoading(false);
@@ -27,13 +73,13 @@ export const Navbar = () => {
   };
 
   const handleBookClick = (bookId: string) => {
-    setIsSearchOpen(false); // Modalı kapat
-    setQuery(''); // Aramayı temizle
-    router.push(`/book/${bookId}`); // Detay sayfasına git
+    setIsSearchOpen(false);
+    setQuery('');
+    router.push(`/book/${bookId}`);
   };
 
   return (
-    <nav className="fixed top-0 w-full bg-gray-900/90 backdrop-blur-md border-b border-gray-800 z-50">
+    <nav className="fixed top-0 w-full bg-gray-950/90 backdrop-blur-md border-b border-gray-800 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           
@@ -67,7 +113,7 @@ export const Navbar = () => {
               )}
             </form>
 
-            {/* Arama Sonuçları Dropdown */}
+            {/* Arama Sonuçları */}
             {isSearchOpen && results.length > 0 && (
               <div className="absolute top-full mt-2 w-full bg-gray-800 rounded-xl border border-gray-700 shadow-2xl overflow-hidden z-50">
                 <div className="flex justify-between items-center px-4 py-2 border-b border-gray-700 bg-gray-850">
@@ -98,29 +144,63 @@ export const Navbar = () => {
           {/* Sağ İkonlar */}
           <div className="flex items-center gap-4">
             
-            {/* YENİ: Kütüphanem Linki */}
-            <Link 
-              href="/library" 
-              className="p-2 rounded-full text-gray-400 hover:text-white hover:bg-gray-800 transition" 
-              title="Kütüphanem"
-            >
-              <BookOpen className="h-6 w-6" />
-            </Link>
-
-            <button className="p-2 rounded-full text-gray-400 hover:text-white hover:bg-gray-800 transition relative">
-              <Bell className="h-6 w-6" />
-              {/* Bildirim noktası (süs) */}
-              <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 border border-gray-900"></span>
-            </button>
-            
-            {/* Profil Resmi (Şimdilik statik, sonra AuthButton ile değişebiliriz) */}
-            <div className="h-8 w-8 rounded-full bg-gradient-to-r from-blue-500 to-teal-400 p-[2px] cursor-pointer">
-              <img 
-                src="https://i.pravatar.cc/150?u=alican" 
-                alt="Profile" 
-                className="rounded-full h-full w-full object-cover border-2 border-gray-900"
-              />
+            {/* Bildirim İkonu */}
+            <div className="relative">
+                <button 
+                    ref={notifRef}
+                    onClick={() => setIsNotifOpen(!isNotifOpen)}
+                    className="p-2 rounded-full text-gray-400 hover:text-white hover:bg-gray-800 transition relative"
+                >
+                    <Bell className="h-6 w-6" />
+                    <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 border border-gray-900"></span>
+                </button>
+                {/* Bildirim Dropdown */}
+                {isNotifOpen && (
+                    <div className="absolute right-0 mt-2 w-64 bg-gray-800 rounded-xl border border-gray-700 shadow-xl py-2 z-50">
+                        <div className="px-4 py-2 text-sm text-gray-400 border-b border-gray-700">Bildirimler</div>
+                        <div className="px-4 py-3 text-sm text-gray-300 hover:bg-gray-700 cursor-pointer">
+                            Henüz yeni bildirim yok.
+                        </div>
+                    </div>
+                )}
             </div>
+            
+            {/* --- PROFİL MENÜSÜ (DROPDOWN) --- */}
+            <div className="relative" ref={profileRef}>
+                <div 
+                    onClick={() => setIsProfileOpen(!isProfileOpen)}
+                    className="h-9 w-9 rounded-full bg-gradient-to-r from-blue-500 to-teal-400 p-[2px] cursor-pointer hover:scale-105 transition transform"
+                >
+                    <img 
+                        src={userAvatar || "https://i.pravatar.cc/150?u=guest"} 
+                        alt="Profile" 
+                        className="rounded-full h-full w-full object-cover border-2 border-gray-900 bg-gray-800"
+                    />
+                </div>
+
+                {/* Açılır Menü */}
+                {isProfileOpen && (
+                    <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-xl border border-gray-700 shadow-xl py-1 z-50 overflow-hidden">
+                        <Link href="/library" className="flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition">
+                            <Library className="h-4 w-4" /> Kütüphanem
+                        </Link>
+                        <button className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition text-left">
+                            <UserIcon className="h-4 w-4" /> Profilim
+                        </button>
+                        <button className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition text-left">
+                            <Settings className="h-4 w-4" /> Ayarlar
+                        </button>
+                        <div className="h-px bg-gray-700 my-1"></div>
+                        <button 
+                            onClick={handleLogout}
+                            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 transition text-left"
+                        >
+                            <LogOut className="h-4 w-4" /> Çıkış Yap
+                        </button>
+                    </div>
+                )}
+            </div>
+
           </div>
         </div>
       </div>
