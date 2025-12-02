@@ -5,32 +5,17 @@ import { supabase } from "@/lib/supabaseClient";
 import BookCard from "@/components/BookCard";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import ReviewModal from "@/components/ReviewModal"; 
-
-interface UserBook {
-    id: number;
-    status: string;
-    is_favorite: boolean;
-    rating: number | null; 
-    notes: string | null;
-    book: {
-        id: string;
-        title: string;
-        author: string;
-        cover_url: string | null;
-        isbn: string | null;
-    };
-}
+import ReviewModal from "@/components/ReviewModal";
+// TİP DÜZELTMESİ: Global tipleri import ediyoruz
+import { UserBook, BookStatus } from "@/types";
 
 export default function LibraryPage() {
-  // --- HOOKS (Mutlaka En Üste) ---
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [myBooks, setMyBooks] = useState<UserBook[]>([]); 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedBook, setSelectedBook] = useState<UserBook | null>(null);
 
-  // Verileri Çekme Fonksiyonu
   const fetchLibrary = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
@@ -38,19 +23,18 @@ export default function LibraryPage() {
       return;
     }
 
-    // Sorgu
     const { data, error } = await supabase
       .from("user_books")
       .select(`
-        id, status, is_favorite, rating, notes, created_at, user_id, book_id,
-        book:books (id, title, author, cover_url, isbn) 
+        *,
+        book:books (*) 
       `)
       .eq("user_id", session.user.id)
       .order("created_at", { ascending: false });
 
     if (error) console.error("Kütüphane verisi çekilirken hata:", error);
     
-    // TypeScript uyarısını çözen satır (as unknown as UserBook[])
+    // TİP DÜZELTMESİ: Veriyi zorla UserBook[] tipine çeviriyoruz
     setMyBooks((data as unknown as UserBook[]) || []); 
     setLoading(false);
   };
@@ -59,9 +43,7 @@ export default function LibraryPage() {
     fetchLibrary();
   }, [router]);
 
-
-  // --- İŞLEM FONKSİYONLARI ---
-  const handleStatusChange = async (recordId: number, newStatus: string) => {
+  const handleStatusChange = async (recordId: string | number, newStatus: string) => {
     if (newStatus === "remove") {
       const confirmDelete = confirm("Bu kitabı listenizden kaldırmak istediğinize emin misiniz?");
       if (!confirmDelete) return;
@@ -69,7 +51,7 @@ export default function LibraryPage() {
       const { error } = await supabase.from("user_books").delete().eq("id", recordId);
       
       if (!error) {
-        setMyBooks((prev) => prev.filter((item) => item.id !== recordId));
+        setMyBooks((prev) => prev.filter((item) => String(item.id) !== String(recordId)));
       } else {
         alert("Silinirken hata oluştu.");
       }
@@ -84,7 +66,8 @@ export default function LibraryPage() {
     if (!error) {
       setMyBooks((prev) =>
         prev.map((item) =>
-          item.id === recordId ? { ...item, status: newStatus } : item
+          // Durum güncellemesini ekrana yansıt
+          String(item.id) === String(recordId) ? { ...item, status: newStatus as BookStatus } : item
         )
       );
     } else {
@@ -99,21 +82,17 @@ export default function LibraryPage() {
   };
 
   const handleReviewSaved = (newRating: number | null, newNotes: string | null) => {
-    // Modal'dan gelen yeni değerleri ana listeye anında yansıt
     if (selectedBook) {
         setMyBooks((prev) =>
             prev.map((item) =>
-                item.id === selectedBook.id ? { ...item, rating: newRating, notes: newNotes } : item
+                item.id === selectedBook.id ? { ...item, rating: newRating || undefined, notes: newNotes || undefined } : item
             )
         );
     }
-    // Modalı kapatma işlemini burada yapıyoruz ki Hook'lar şaşırmasın
     setIsModalOpen(false); 
   };
 
-
-  // YARDIMCI BİLEŞEN: Yıldızları Gösteren Fonksiyon
-  const renderRatingStars = (rating: number | null) => {
+  const renderRatingStars = (rating: number | null | undefined) => {
     if (!rating) return null;
     return (
         <div className="flex text-yellow-400 text-lg">
@@ -123,8 +102,6 @@ export default function LibraryPage() {
     );
   };
 
-
-  // Yükleniyor Ekranı (JSX)
   if (loading) {
     return (
         <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
@@ -140,7 +117,6 @@ export default function LibraryPage() {
     <div className="min-h-screen bg-gray-900 text-white p-4 md:p-8">
       <main className="max-w-6xl mx-auto">
         
-        {/* Başlıklar ve Sayı */}
         <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4 border-b border-gray-800 pb-6">
           <div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-green-400 to-blue-500 bg-clip-text text-transparent">
@@ -155,7 +131,6 @@ export default function LibraryPage() {
           </div>
         </div>
 
-        {/* Liste Boşsa */}
         {myBooks.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 bg-gray-800/30 rounded-3xl border border-dashed border-gray-700">
             <div className="text-6xl mb-4">📚</div>
@@ -168,18 +143,15 @@ export default function LibraryPage() {
             </Link>
           </div>
         ) : (
-          /* Kitap Listesi */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {myBooks.map((item: UserBook) => (
               <div key={item.id} className="relative group bg-gray-800 rounded-xl p-4 border border-gray-700 hover:border-blue-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-900/20">
                 
-                {/* Kitap Kartı */}
-                {item.book && <BookCard book={item.book} />}
+                {/* BookCard'a doğru tipi gönderiyoruz */}
+                {item.book && <BookCard userBook={item} />}
 
-                {/* --- Favori ve Puan Görüntüleme --- */}
                 <div className="flex justify-between items-center mt-4 pt-2 border-t border-gray-700">
                     <div className="flex items-center gap-3">
-                        {/* Puanlama Yıldızları */}
                         {item.rating ? (
                             <div className="flex items-center gap-1">
                                 {renderRatingStars(item.rating)}
@@ -190,24 +162,22 @@ export default function LibraryPage() {
                         )}
                     </div>
 
-                    {/* Favori Kalbi */}
                     {item.is_favorite && (
                         <span className="text-red-500 text-2xl" title="Favori Kitabın">❤️</span>
                     )}
                 </div>
                 
-                {/* --- AKILLI DURUM & İNCELE PANELİ --- */}
                 <div className="mt-4 pt-4 border-t border-gray-700 flex items-center justify-between gap-4">
-                  {/* Durum Seçimi */}
                   <div className="relative flex-1">
                     <select
-                      value={item.status}
+                      // Enum değerlerini string'e çevirip kullanıyoruz
+                      value={item.status as string} 
                       onChange={(e) => handleStatusChange(item.id, e.target.value)}
                       className={`
                         appearance-none cursor-pointer text-xs font-bold w-full text-center px-3 py-1.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all
-                        ${item.status === 'want_to_read' ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/50 hover:bg-yellow-500/20' : ''}
-                        ${item.status === 'reading' ? 'bg-blue-500/10 text-blue-400 border-blue-500/50 hover:bg-blue-500/20' : ''}
-                        ${item.status === 'finished' ? 'bg-green-500/10 text-green-400 border-green-500/50 hover:bg-green-500/20' : ''}
+                        ${item.status === BookStatus.WANT_TO_READ ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/50 hover:bg-yellow-500/20' : ''}
+                        ${item.status === BookStatus.READING ? 'bg-blue-500/10 text-blue-400 border-blue-500/50 hover:bg-blue-500/20' : ''}
+                        ${item.status === BookStatus.FINISHED ? 'bg-green-500/10 text-green-400 border-green-500/50 hover:bg-green-500/20' : ''}
                       `}
                     >
                       <option value="want_to_read" className="bg-gray-800 text-yellow-500">⏳ Okunacak</option>
@@ -221,7 +191,6 @@ export default function LibraryPage() {
                     </div>
                   </div>
 
-                  {/* İNCELE BUTONU */}
                   <button
                     onClick={() => openReviewModal(item)}
                     className="px-4 py-1.5 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 rounded-lg text-white transition whitespace-nowrap"
@@ -236,14 +205,13 @@ export default function LibraryPage() {
         )}
       </main>
 
-      {/* --- MODAL BİLEŞENİ --- */}
       {selectedBook && (
         <ReviewModal
             isOpen={isModalOpen}
             onClose={() => setIsModalOpen(false)} 
-            userBookId={selectedBook.id}
-            initialRating={selectedBook.rating}
-            initialNotes={selectedBook.notes}
+            userBookId={Number(selectedBook.id)} 
+            initialRating={selectedBook.rating || null}
+            initialNotes={selectedBook.notes || null}
             bookTitle={selectedBook.book.title}
             onReviewSaved={handleReviewSaved}
         />

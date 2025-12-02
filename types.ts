@@ -13,10 +13,10 @@ export interface Profile {
 }
 
 export enum BookStatus {
-  READ = 'READ',
-  CURRENTLY_READING = 'CURRENTLY_READING',
-  WANT_TO_READ = 'WANT_TO_READ',
-  DNF = 'DNF' // Did not finish
+  FINISHED = 'finished', // Veritabanındaki 'finished' ile aynı olmalı
+  READING = 'reading',
+  WANT_TO_READ = 'want_to_read',
+  DNF = 'dnf'
 }
 
 export interface Book {
