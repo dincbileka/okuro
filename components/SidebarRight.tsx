@@ -3,6 +3,7 @@
 import React from 'react';
 import { TrendingUp, UserPlus, ArrowRight } from 'lucide-react';
 import { trendingBooks, suggestedUsers } from '../services/mockData';
+import Link from 'next/link'; // <--- Link Eklendi
 
 export const SidebarRight = () => {
   return (
@@ -53,10 +54,17 @@ export const SidebarRight = () => {
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="text-xs text-gray-600 px-2 text-center leading-relaxed">
-        &copy; 2025 Okuro Inc. <br/>
-        Gizlilik • Şartlar • İletişim
+      {/* --- FOOTER (Linkler Eklendi) --- */}
+      <div className="px-4 py-2">
+        <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs text-gray-500">
+            <Link href="/about" className="hover:text-gray-300 transition">Hakkımızda</Link>
+            <Link href="/privacy" className="hover:text-gray-300 transition">Gizlilik</Link>
+            <Link href="/terms" className="hover:text-gray-300 transition">Şartlar</Link>
+            <Link href="/contact" className="hover:text-gray-300 transition">İletişim</Link>
+        </div>
+        <div className="text-xs text-gray-600 text-center mt-3">
+            &copy; 2025 Okuro Inc.
+        </div>
       </div>
 
     </aside>

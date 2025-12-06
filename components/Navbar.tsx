@@ -5,7 +5,7 @@ import { Search, Bell, X, BookOpen, LogOut, User as UserIcon, Settings, Library 
 import { searchBooksWithGemini } from '../services/geminiService';
 import { Book } from '../types';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import Link from 'next/link'; // Link bileşeni önemli
 import { supabase } from "@/lib/supabaseClient";
 
 export const Navbar = () => {
@@ -15,7 +15,6 @@ export const Navbar = () => {
   const [results, setResults] = useState<Book[]>([]);
   const [loading, setLoading] = useState(false);
   
-  // State'ler
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -86,6 +85,7 @@ export const Navbar = () => {
             </span>
           </Link>
 
+          {/* Arama Barı */}
           <div className="hidden md:block flex-1 max-w-lg mx-8 relative">
             <form onSubmit={handleSearch} className="relative group">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -129,19 +129,7 @@ export const Navbar = () => {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="relative">
-                <button ref={notifRef} onClick={() => setIsNotifOpen(!isNotifOpen)} className="p-2 rounded-full text-gray-400 hover:text-white hover:bg-gray-800 transition relative">
-                    <Bell className="h-6 w-6" />
-                    <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 border border-gray-900"></span>
-                </button>
-                {isNotifOpen && (
-                    <div className="absolute right-0 mt-2 w-64 bg-gray-800 rounded-xl border border-gray-700 shadow-xl py-2 z-50">
-                        <div className="px-4 py-2 text-sm text-gray-400 border-b border-gray-700">Bildirimler</div>
-                        <div className="px-4 py-3 text-sm text-gray-300 hover:bg-gray-700 cursor-pointer">Henüz yeni bildirim yok.</div>
-                    </div>
-                )}
-            </div>
-            
+            {/* Profil Menüsü */}
             <div className="relative" ref={profileRef}>
                 <div onClick={() => setIsProfileOpen(!isProfileOpen)} className="h-9 w-9 rounded-full bg-gradient-to-r from-blue-500 to-teal-400 p-[2px] cursor-pointer hover:scale-105 transition transform">
                     <img src={userAvatar || "https://i.pravatar.cc/150?u=guest"} alt="Profile" className="rounded-full h-full w-full object-cover border-2 border-gray-900 bg-gray-800" />
@@ -149,11 +137,13 @@ export const Navbar = () => {
 
                 {isProfileOpen && (
                     <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-xl border border-gray-700 shadow-xl py-1 z-50 overflow-hidden">
+                        
+                        {/* Kütüphanem */}
                         <Link href="/library" className="flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition">
                             <Library className="h-4 w-4" /> Kütüphanem
                         </Link>
                         
-                        {/* --- DÜZELTİLEN KISIM --- */}
+                        {/* DÜZELTME: Profilim (Button -> Link) */}
                         <Link 
                             href={`/u/${username || 'me'}`} 
                             className="flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition w-full text-left"
@@ -161,14 +151,14 @@ export const Navbar = () => {
                             <UserIcon className="h-4 w-4" /> Profilim
                         </Link>
 
+                        {/* DÜZELTME: Ayarlar (Button -> Link) */}
                         <Link 
                             href="/settings"
                             className="flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition w-full text-left"
                         >
                             <Settings className="h-4 w-4" /> Ayarlar
                         </Link>
-                        {/* ------------------------- */}
-
+                        
                         <div className="h-px bg-gray-700 my-1"></div>
                         <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 transition text-left">
                             <LogOut className="h-4 w-4" /> Çıkış Yap

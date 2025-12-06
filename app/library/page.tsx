@@ -6,7 +6,7 @@ import BookCard from "@/components/BookCard";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ReviewModal from "@/components/ReviewModal";
-// TİP DÜZELTMESİ: Global tipleri import ediyoruz
+// Global tipleri kullanıyoruz
 import { UserBook, BookStatus } from "@/types";
 
 export default function LibraryPage() {
@@ -23,6 +23,7 @@ export default function LibraryPage() {
       return;
     }
 
+    // Veritabanından verileri çekiyoruz
     const { data, error } = await supabase
       .from("user_books")
       .select(`
@@ -34,7 +35,7 @@ export default function LibraryPage() {
 
     if (error) console.error("Kütüphane verisi çekilirken hata:", error);
     
-    // TİP DÜZELTMESİ: Veriyi zorla UserBook[] tipine çeviriyoruz
+    // TİP DÜZELTMESİ: Gelen veriyi zorla UserBook[] tipine çeviriyoruz
     setMyBooks((data as unknown as UserBook[]) || []); 
     setLoading(false);
   };
@@ -43,7 +44,7 @@ export default function LibraryPage() {
     fetchLibrary();
   }, [router]);
 
-  const handleStatusChange = async (recordId: string | number, newStatus: string) => {
+  const handleStatusChange = async (recordId: number | string, newStatus: string) => {
     if (newStatus === "remove") {
       const confirmDelete = confirm("Bu kitabı listenizden kaldırmak istediğinize emin misiniz?");
       if (!confirmDelete) return;
@@ -51,6 +52,7 @@ export default function LibraryPage() {
       const { error } = await supabase.from("user_books").delete().eq("id", recordId);
       
       if (!error) {
+        // ID karşılaştırmasında String() kullanarak tür uyuşmazlığını önlüyoruz
         setMyBooks((prev) => prev.filter((item) => String(item.id) !== String(recordId)));
       } else {
         alert("Silinirken hata oluştu.");
@@ -66,7 +68,8 @@ export default function LibraryPage() {
     if (!error) {
       setMyBooks((prev) =>
         prev.map((item) =>
-          // Durum güncellemesini ekrana yansıt
+          // Status güncellemesini arayüze anında yansıtıyoruz
+          // 'as BookStatus' diyerek TypeScript'e güven veriyoruz
           String(item.id) === String(recordId) ? { ...item, status: newStatus as BookStatus } : item
         )
       );
@@ -85,7 +88,7 @@ export default function LibraryPage() {
     if (selectedBook) {
         setMyBooks((prev) =>
             prev.map((item) =>
-                item.id === selectedBook.id ? { ...item, rating: newRating || undefined, notes: newNotes || undefined } : item
+                String(item.id) === String(selectedBook.id) ? { ...item, rating: newRating || undefined, notes: newNotes || undefined } : item
             )
         );
     }
@@ -104,7 +107,7 @@ export default function LibraryPage() {
 
   if (loading) {
     return (
-        <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+        <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
             <div className="flex flex-col items-center gap-4">
             <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
             <p className="text-blue-400 animate-pulse">Yükleniyor...</p>
@@ -114,7 +117,7 @@ export default function LibraryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-4 md:p-8">
+    <div className="min-h-screen bg-gray-950 text-white p-4 md:p-8">
       <main className="max-w-6xl mx-auto">
         
         <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4 border-b border-gray-800 pb-6">
@@ -147,7 +150,7 @@ export default function LibraryPage() {
             {myBooks.map((item: UserBook) => (
               <div key={item.id} className="relative group bg-gray-800 rounded-xl p-4 border border-gray-700 hover:border-blue-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-900/20">
                 
-                {/* BookCard'a doğru tipi gönderiyoruz */}
+                {/* BookCard çağrısı */}
                 {item.book && <BookCard userBook={item} />}
 
                 <div className="flex justify-between items-center mt-4 pt-2 border-t border-gray-700">
@@ -170,16 +173,17 @@ export default function LibraryPage() {
                 <div className="mt-4 pt-4 border-t border-gray-700 flex items-center justify-between gap-4">
                   <div className="relative flex-1">
                     <select
-                      // Enum değerlerini string'e çevirip kullanıyoruz
-                      value={item.status as string} 
+                      // status değerini string'e çevirerek value'ya atıyoruz
+                      value={item.status as unknown as string} 
                       onChange={(e) => handleStatusChange(item.id, e.target.value)}
                       className={`
                         appearance-none cursor-pointer text-xs font-bold w-full text-center px-3 py-1.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all
-                        ${item.status === BookStatus.WANT_TO_READ ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/50 hover:bg-yellow-500/20' : ''}
-                        ${item.status === BookStatus.READING ? 'bg-blue-500/10 text-blue-400 border-blue-500/50 hover:bg-blue-500/20' : ''}
-                        ${item.status === BookStatus.FINISHED ? 'bg-green-500/10 text-green-400 border-green-500/50 hover:bg-green-500/20' : ''}
+                        ${(item.status as unknown as string) === 'want_to_read' ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/50 hover:bg-yellow-500/20' : ''}
+                        ${(item.status as unknown as string) === 'reading' ? 'bg-blue-500/10 text-blue-400 border-blue-500/50 hover:bg-blue-500/20' : ''}
+                        ${(item.status as unknown as string) === 'finished' ? 'bg-green-500/10 text-green-400 border-green-500/50 hover:bg-green-500/20' : ''}
                       `}
                     >
+                      {/* Option value'ları veritabanındaki (küçük harf) değerlerle aynı olmalı */}
                       <option value="want_to_read" className="bg-gray-800 text-yellow-500">⏳ Okunacak</option>
                       <option value="reading" className="bg-gray-800 text-blue-400">📖 Okuyorum</option>
                       <option value="finished" className="bg-gray-800 text-green-400">✅ Bitti</option>
@@ -209,6 +213,7 @@ export default function LibraryPage() {
         <ReviewModal
             isOpen={isModalOpen}
             onClose={() => setIsModalOpen(false)} 
+            // ID Number mı String mi çelişkisini çözmek için Number()
             userBookId={Number(selectedBook.id)} 
             initialRating={selectedBook.rating || null}
             initialNotes={selectedBook.notes || null}

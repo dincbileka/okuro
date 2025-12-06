@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { MapPin, Link as LinkIcon, UserPlus, MoreHorizontal, Star } from 'lucide-react';
+import { MapPin, Link as LinkIcon, UserPlus, MoreHorizontal, Star, Edit3 } from 'lucide-react'; // Edit3 eklendi
 import { supabase } from "@/lib/supabaseClient";
 import BookCard from '@/components/BookCard';
+import Link from 'next/link'; // Link eklendi
 
 // Veri tipleri
 interface Profile {
@@ -35,10 +36,10 @@ interface UserBook {
 
 export default function ProfilePage() {
   const params = useParams();
-  // params.username'in varlığını garantiye alalım
   const username = typeof params?.username === 'string' ? params.username : '';
 
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null); // Giriş yapan kullanıcı
   const [userBooks, setUserBooks] = useState<UserBook[]>([]);
   const [activeTab, setActiveTab] = useState<'activity' | 'shelves' | 'reviews'>('activity');
   const [isLoading, setIsLoading] = useState(true);
@@ -46,17 +47,20 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const fetchProfileData = async () => {
-      if (!username) return; // Username yoksa işlem yapma
+      if (!username) return;
       
       setIsLoading(true);
       
       try {
-        // 1. Username'e (email'in başı) göre profili bul
-        // Not: Gerçek bir username sütunu olmadığı için email üzerinden "like" ile arıyoruz
+        // 0. Önce oturum açan kişiyi bul
+        const { data: { session } } = await supabase.auth.getSession();
+        setCurrentUser(session?.user || null);
+
+        // 1. Profil sahibini bul
         const { data: profiles, error: profileError } = await supabase
           .from('profiles')
           .select('*')
-          .ilike('email', `${username}@%`) // username@... ile başlayan maili bul
+          .ilike('email', `${username}@%`)
           .limit(1);
 
         if (profileError || !profiles || profiles.length === 0) {
@@ -69,8 +73,8 @@ export default function ProfilePage() {
         const userProfile = profiles[0];
         setProfile(userProfile);
 
-        // 2. Bu kullanıcının kitaplarını çek
-        const { data: booksData, error: booksError } = await supabase
+        // 2. Kitapları çek
+        const { data: booksData } = await supabase
           .from("user_books")
           .select(`
             *,
@@ -80,14 +84,10 @@ export default function ProfilePage() {
           .order("created_at", { ascending: false });
 
         if (booksData) {
-          // Tip dönüşümü ve veri set etme
           setUserBooks(booksData as unknown as UserBook[]);
-          
-          // İstatistikleri Hesapla
           const totalBooks = booksData.length;
-          const totalPages = booksData.reduce((acc, curr) => acc + (curr.book?.page_count || 0), 0); // page_count yoksa 0 al
-          
-          setStats({ books: totalBooks, pages: totalPages, followers: 12 }); // Mock follower
+          const totalPages = booksData.reduce((acc, curr) => acc + (curr.book?.page_count || 0), 0);
+          setStats({ books: totalBooks, pages: totalPages, followers: 12 });
         }
 
       } catch (err) {
@@ -114,14 +114,15 @@ export default function ProfilePage() {
     );
   }
 
-  // Verileri Filtrele
   const currentlyReading = userBooks.find(b => b.status === 'reading');
   const favorites = userBooks.filter(b => b.is_favorite);
   const reviewedBooks = userBooks.filter(b => b.notes && b.notes.length > 0);
-  const activityFeed = [...userBooks]; // Zaten tarihe göre sıralı
+  const activityFeed = [...userBooks];
 
-  // Varsayılan avatar
   const displayAvatar = profile.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.full_name}`;
+  
+  // Kendi profilim mi kontrolü
+  const isOwnProfile = currentUser && profile && currentUser.id === profile.id;
 
   return (
     <div className="min-h-screen bg-gray-950 text-white pb-12">
@@ -148,14 +149,31 @@ export default function ProfilePage() {
                 <h1 className="text-3xl font-bold text-white">{profile.full_name}</h1>
                 <p className="text-gray-400">@{username}</p>
               </div>
-              <div className="flex gap-3">
-                <button className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center gap-2 shadow-lg shadow-blue-900/20">
-                  <UserPlus size={16} /> Takip Et
-                </button>
-                <button className="p-2 border border-gray-700 rounded-lg hover:bg-gray-800 text-gray-400 transition">
-                  <MoreHorizontal size={18} />
-                </button>
+              
+              {/* --- AKILLI BUTON ALANI --- */}
+              <div className="flex gap-3 justify-center md:justify-start">
+                {isOwnProfile ? (
+                    // Kendi Profilin: Ayarlara Git
+                    <Link 
+                        href="/settings" 
+                        className="px-5 py-2 bg-gray-800 hover:bg-gray-700 text-white border border-gray-700 rounded-lg font-semibold text-sm transition-colors flex items-center gap-2"
+                    >
+                        <Edit3 size={16} /> Profili Düzenle
+                    </Link>
+                ) : (
+                    // Başkasının Profili: Takip Et
+                    <>
+                        <button className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center gap-2 shadow-lg shadow-blue-900/20">
+                        <UserPlus size={16} /> Takip Et
+                        </button>
+                        <button className="p-2 border border-gray-700 rounded-lg hover:bg-gray-800 text-gray-400 transition">
+                        <MoreHorizontal size={18} />
+                        </button>
+                    </>
+                )}
               </div>
+              {/* ------------------------- */}
+
             </div>
 
             <p className="text-gray-300 mb-6 leading-relaxed max-w-2xl mx-auto md:mx-0">
@@ -196,14 +214,13 @@ export default function ProfilePage() {
 
       <div className="max-w-5xl mx-auto px-6 space-y-10">
         
-        {/* --- FAVORİLER RAFI (Yatay Kaydırma) --- */}
+        {/* --- FAVORİLER RAFI --- */}
         {favorites.length > 0 && (
           <section>
             <div className="flex items-center gap-2 mb-4">
               <Star size={20} className="text-yellow-500 fill-yellow-500" />
               <h2 className="font-bold text-xl text-white">Favoriler</h2>
             </div>
-            {/* Mobilde kaydırma, masaüstünde grid */}
             <div className="flex overflow-x-auto gap-4 pb-4 no-scrollbar snap-x md:grid md:grid-cols-6 md:overflow-visible">
               {favorites.map(ub => (
                 <BookCard key={ub.id} userBook={ub} variant="shelf" />
@@ -226,8 +243,6 @@ export default function ProfilePage() {
               <div className="flex-1 flex flex-col justify-center">
                 <h3 className="font-bold text-2xl text-white mb-1">{currentlyReading.book.title}</h3>
                 <p className="text-gray-400 mb-4">{currentlyReading.book.author}</p>
-                
-                {/* İlerleme Çubuğu (Mock Data) */}
                 <div className="w-full max-w-md bg-gray-800 rounded-full h-2 mb-2">
                   <div className="bg-blue-600 h-2 rounded-full w-1/3"></div>
                 </div>

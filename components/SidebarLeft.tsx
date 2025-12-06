@@ -132,10 +132,15 @@ export const SidebarLeft = () => {
       </div>
 
       {/* Menü Linkleri */}
+      {/* Menü Linkleri */}
       <div className="space-y-2">
-        <button className="w-full flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition">
+        {/* DÜZELTME: Ayarlar (Button -> Link) */}
+        <Link 
+            href="/settings"
+            className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition w-full"
+        >
           <Settings className="h-5 w-5" /> Ayarlar
-        </button>
+        </Link>
         
         <button 
           onClick={handleLogout}
