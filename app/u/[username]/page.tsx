@@ -2,10 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { MapPin, Link as LinkIcon, UserPlus, MoreHorizontal, Star, Edit3 } from 'lucide-react'; // Edit3 eklendi
+import { MapPin, Link as LinkIcon, MoreHorizontal, Star, Edit3, Users } from 'lucide-react';
 import { supabase } from "@/lib/supabaseClient";
 import BookCard from '@/components/BookCard';
-import Link from 'next/link'; // Link eklendi
+import Link from 'next/link';
+import FriendButton from '@/components/FriendButton';
+import { useTranslation } from "@/lib/LanguageContext";
 
 // Veri tipleri
 interface Profile {
@@ -18,13 +20,16 @@ interface Profile {
   website?: string;
 }
 
-interface UserBook {
+interface LocalUserBook {
     id: number;
+    user_id?: string;
+    book_id?: string;
     status: string;
     is_favorite: boolean;
     rating: number | null; 
     notes: string | null;
     created_at: string;
+    updated_at?: string;
     book: {
         id: string;
         title: string;
@@ -36,14 +41,15 @@ interface UserBook {
 
 export default function ProfilePage() {
   const params = useParams();
+  const { t } = useTranslation();
   const username = typeof params?.username === 'string' ? params.username : '';
 
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [currentUser, setCurrentUser] = useState<any>(null); // Giriş yapan kullanıcı
-  const [userBooks, setUserBooks] = useState<UserBook[]>([]);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [userBooks, setUserBooks] = useState<LocalUserBook[]>([]);
   const [activeTab, setActiveTab] = useState<'activity' | 'shelves' | 'reviews'>('activity');
   const [isLoading, setIsLoading] = useState(true);
-  const [stats, setStats] = useState({ books: 0, pages: 0, followers: 0 });
+  const [stats, setStats] = useState({ books: 0, pages: 0, friends: 0 });
 
   useEffect(() => {
     const fetchProfileData = async () => {
@@ -84,10 +90,18 @@ export default function ProfilePage() {
           .order("created_at", { ascending: false });
 
         if (booksData) {
-          setUserBooks(booksData as unknown as UserBook[]);
+          setUserBooks(booksData as unknown as LocalUserBook[]);
           const totalBooks = booksData.length;
           const totalPages = booksData.reduce((acc, curr) => acc + (curr.book?.page_count || 0), 0);
-          setStats({ books: totalBooks, pages: totalPages, followers: 12 });
+          
+          // Arkadaş sayısını çek
+          const { count: friendCount } = await supabase
+            .from("friendships")
+            .select("*", { count: "exact", head: true })
+            .eq("status", "accepted")
+            .or(`requester_id.eq.${userProfile.id},addressee_id.eq.${userProfile.id}`);
+
+          setStats({ books: totalBooks, pages: totalPages, friends: friendCount || 0 });
         }
 
       } catch (err) {
@@ -101,15 +115,15 @@ export default function ProfilePage() {
   }, [username]);
 
   if (isLoading) {
-    return <div className="min-h-screen bg-gray-950 text-gray-500 flex items-center justify-center animate-pulse">Profil yükleniyor...</div>;
+    return <div className="min-h-screen bg-gray-950 text-gray-500 flex items-center justify-center animate-pulse">{t('common.loading')}</div>;
   }
 
   if (!profile) {
     return (
         <div className="min-h-screen bg-gray-950 text-white flex flex-col items-center justify-center gap-4">
             <h1 className="text-4xl">😕</h1>
-            <p className="text-xl font-bold">Kullanıcı Bulunamadı</p>
-            <p className="text-gray-500">@{username} adında bir okur yok.</p>
+            <p className="text-xl font-bold">{t('social.userNotFound')}</p>
+            <p className="text-gray-500">@{username} {t('social.noSuchUser')}</p>
         </div>
     );
   }
@@ -158,16 +172,17 @@ export default function ProfilePage() {
                         href="/settings" 
                         className="px-5 py-2 bg-gray-800 hover:bg-gray-700 text-white border border-gray-700 rounded-lg font-semibold text-sm transition-colors flex items-center gap-2"
                     >
-                        <Edit3 size={16} /> Profili Düzenle
+                        <Edit3 size={16} /> {t('social.editProfile')}
                     </Link>
                 ) : (
-                    // Başkasının Profili: Takip Et
+                    // Başkasının Profili: Arkadaş Ekle
                     <>
-                        <button className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center gap-2 shadow-lg shadow-blue-900/20">
-                        <UserPlus size={16} /> Takip Et
-                        </button>
+                        <FriendButton 
+                          targetUserId={profile.id} 
+                          currentUserId={currentUser?.id || null}
+                        />
                         <button className="p-2 border border-gray-700 rounded-lg hover:bg-gray-800 text-gray-400 transition">
-                        <MoreHorizontal size={18} />
+                          <MoreHorizontal size={18} />
                         </button>
                     </>
                 )}
@@ -177,7 +192,7 @@ export default function ProfilePage() {
             </div>
 
             <p className="text-gray-300 mb-6 leading-relaxed max-w-2xl mx-auto md:mx-0">
-                {profile.bio || "Henüz bir biyografi eklenmemiş."}
+                {profile.bio || t('social.noBio')}
             </p>
 
             <div className="flex flex-wrap justify-center md:justify-start gap-6 text-sm text-gray-400 mb-6">
@@ -197,16 +212,16 @@ export default function ProfilePage() {
             <div className="flex justify-center md:justify-start gap-12 border-t border-gray-800 pt-6">
               <div>
                 <span className="block font-bold text-white text-xl">{stats.books}</span>
-                <span className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Kitap</span>
+                <span className="text-xs text-gray-500 uppercase tracking-wider font-semibold">{t('social.booksCount')}</span>
               </div>
               <div>
                 <span className="block font-bold text-white text-xl">{(stats.pages / 1000).toFixed(1)}k</span>
-                <span className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Sayfa</span>
+                <span className="text-xs text-gray-500 uppercase tracking-wider font-semibold">{t('social.pagesCount')}</span>
               </div>
-              <div>
-                <span className="block font-bold text-white text-xl">{stats.followers}</span>
-                <span className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Takipçi</span>
-              </div>
+              <Link href="/friends" className="hover:text-blue-400 transition">
+                <span className="block font-bold text-white text-xl">{stats.friends}</span>
+                <span className="text-xs text-gray-500 uppercase tracking-wider font-semibold">{t('social.friendsCount')}</span>
+              </Link>
             </div>
           </div>
         </div>
@@ -219,11 +234,11 @@ export default function ProfilePage() {
           <section>
             <div className="flex items-center gap-2 mb-4">
               <Star size={20} className="text-yellow-500 fill-yellow-500" />
-              <h2 className="font-bold text-xl text-white">Favoriler</h2>
+              <h2 className="font-bold text-xl text-white">{t('social.favorites')}</h2>
             </div>
             <div className="flex overflow-x-auto gap-4 pb-4 no-scrollbar snap-x md:grid md:grid-cols-6 md:overflow-visible">
               {favorites.map(ub => (
-                <BookCard key={ub.id} userBook={ub} variant="shelf" />
+                <BookCard key={ub.id.toString()} userBook={ub as any} variant="shelf" />
               ))}
             </div>
           </section>
@@ -232,7 +247,7 @@ export default function ProfilePage() {
         {/* --- ŞU AN OKUYOR --- */}
         {currentlyReading && (
           <section className="bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-lg">
-            <h2 className="text-xs font-bold text-blue-400 uppercase tracking-wider mb-4">Şu An Okuyor</h2>
+            <h2 className="text-xs font-bold text-blue-400 uppercase tracking-wider mb-4">{t('social.currentlyReading')}</h2>
             <div className="flex gap-6">
               {currentlyReading.book.cover_url ? (
                 <img src={currentlyReading.book.cover_url} alt="cover" className="w-20 h-32 object-cover rounded-lg shadow-md" />
@@ -246,7 +261,7 @@ export default function ProfilePage() {
                 <div className="w-full max-w-md bg-gray-800 rounded-full h-2 mb-2">
                   <div className="bg-blue-600 h-2 rounded-full w-1/3"></div>
                 </div>
-                <p className="text-xs text-gray-500 font-mono">%33 tamamlandı</p>
+                <p className="text-xs text-gray-500 font-mono">33% {t('social.completed')}</p>
               </div>
             </div>
           </section>
@@ -259,19 +274,19 @@ export default function ProfilePage() {
               onClick={() => setActiveTab('activity')}
               className={`pb-4 px-6 text-sm font-bold transition-colors border-b-2 ${activeTab === 'activity' ? 'border-blue-500 text-blue-400' : 'border-transparent text-gray-500 hover:text-white'}`}
             >
-              Aktivite
+              {t('social.activity')}
             </button>
             <button 
               onClick={() => setActiveTab('shelves')}
               className={`pb-4 px-6 text-sm font-bold transition-colors border-b-2 ${activeTab === 'shelves' ? 'border-blue-500 text-blue-400' : 'border-transparent text-gray-500 hover:text-white'}`}
             >
-              Raflar
+              {t('social.shelves')}
             </button>
             <button 
               onClick={() => setActiveTab('reviews')}
               className={`pb-4 px-6 text-sm font-bold transition-colors border-b-2 ${activeTab === 'reviews' ? 'border-blue-500 text-blue-400' : 'border-transparent text-gray-500 hover:text-white'}`}
             >
-              İncelemeler ({reviewedBooks.length})
+              {t('social.reviews')} ({reviewedBooks.length})
             </button>
           </div>
 
@@ -279,7 +294,7 @@ export default function ProfilePage() {
             {activeTab === 'activity' && (
               <div className="space-y-4">
                 {activityFeed.map(ub => (
-                  <BookCard key={ub.id} userBook={ub} />
+                  <BookCard key={ub.id} userBook={ub as any} />
                 ))}
               </div>
             )}
@@ -287,7 +302,7 @@ export default function ProfilePage() {
             {activeTab === 'shelves' && (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 {userBooks.map(ub => (
-                  <BookCard key={ub.id} userBook={ub} variant="shelf" />
+                  <BookCard key={ub.id} userBook={ub as any} variant="shelf" />
                 ))}
               </div>
             )}
@@ -296,7 +311,7 @@ export default function ProfilePage() {
               <div className="space-y-4">
                 {reviewedBooks.length === 0 ? (
                   <div className="text-center py-10 bg-gray-900 rounded-xl border border-dashed border-gray-800 text-gray-500">
-                    Henüz inceleme yok.
+                    {t('social.noReviews')}
                   </div>
                 ) : (
                   reviewedBooks.map(ub => (

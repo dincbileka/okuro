@@ -3,14 +3,16 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Save, User, MapPin, Globe, FileText, Loader2, 
-  Settings, Bell, Shield, Palette, Trash2, Moon, Sun, Smartphone 
+  Settings, Bell, Shield, Palette, Trash2, Moon, Sun, Smartphone, Languages 
 } from 'lucide-react';
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import { useTranslation, Language } from "@/lib/LanguageContext";
 
 export default function SettingsPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'profile' | 'account' | 'notifications' | 'appearance'>('profile');
+  const { t, language, setLanguage } = useTranslation();
+  const [activeTab, setActiveTab] = useState<'profile' | 'account' | 'notifications' | 'appearance' | 'language'>('profile');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [user, setUser] = useState<any>(null);
@@ -87,10 +89,10 @@ export default function SettingsPage() {
         .eq('id', user.id);
 
       if (error) throw error;
-      alert("Profil başarıyla güncellendi! ✅");
+      alert(t('settings.profileUpdated'));
       router.refresh(); 
     } catch (error: any) {
-      alert("Hata: " + error.message);
+      alert(t('common.error') + ": " + error.message);
     } finally {
       setSaving(false);
     }
@@ -103,8 +105,7 @@ export default function SettingsPage() {
     // Şimdilik sadece tercihi kaydediyoruz.
     if (newTheme === 'light') {
         document.documentElement.classList.remove('dark');
-        // Light mode için body class'larını değiştirmek gerekebilir
-        alert("Aydınlık mod tercihi kaydedildi (Tam aktif olması için Layout ayarı gerekir).");
+        alert(t('settings.lightModeNote'));
     } else {
         document.documentElement.classList.add('dark');
     }
@@ -132,16 +133,17 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-gray-950 text-white p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">Ayarlar</h1>
+        <h1 className="text-3xl font-bold mb-8">{t('settings.title')}</h1>
         
         <div className="flex flex-col md:flex-row gap-8">
             
             {/* SOL MENÜ */}
             <div className="w-full md:w-64 flex flex-col gap-2">
-                <SidebarItem id="profile" icon={User} label="Profil Ayarları" />
-                <SidebarItem id="appearance" icon={Palette} label="Görünüm" />
-                <SidebarItem id="notifications" icon={Bell} label="Bildirimler" />
-                <SidebarItem id="account" icon={Shield} label="Hesap & Güvenlik" />
+                <SidebarItem id="profile" icon={User} label={t('settings.profileSettings')} />
+                <SidebarItem id="appearance" icon={Palette} label={t('settings.appearance')} />
+                <SidebarItem id="language" icon={Languages} label={t('settings.language')} />
+                <SidebarItem id="notifications" icon={Bell} label={t('settings.notifications')} />
+                <SidebarItem id="account" icon={Shield} label={t('settings.accountSecurity')} />
             </div>
 
             {/* SAĞ İÇERİK ALANI */}
@@ -150,28 +152,28 @@ export default function SettingsPage() {
                 {/* --- 1. PROFİL AYARLARI --- */}
                 {activeTab === 'profile' && (
                     <form onSubmit={handleSaveProfile} className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <h2 className="text-xl font-bold border-b border-gray-800 pb-4 mb-6">Profil Bilgileri</h2>
+                        <h2 className="text-xl font-bold border-b border-gray-800 pb-4 mb-6">{t('settings.profileInfo')}</h2>
                         
                         <div className="flex items-center gap-6">
                             <img src={formData.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${formData.full_name}`} className="w-20 h-20 rounded-full border-2 border-gray-700" alt="Avatar" />
                             <div className="flex-1">
-                                <label className="block text-sm font-medium text-gray-400 mb-1">Görünür İsim</label>
+                                <label className="block text-sm font-medium text-gray-400 mb-1">{t('settings.displayName')}</label>
                                 <input type="text" name="full_name" value={formData.full_name} onChange={handleInputChange} className="w-full p-3 rounded-lg bg-gray-950 border border-gray-700 text-white" />
                             </div>
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-400 mb-1">Biyografi</label>
+                            <label className="block text-sm font-medium text-gray-400 mb-1">{t('settings.bio')}</label>
                             <textarea name="bio" rows={3} value={formData.bio} onChange={handleInputChange} className="w-full p-3 rounded-lg bg-gray-950 border border-gray-700 text-white" />
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-400 mb-1">Konum</label>
+                                <label className="block text-sm font-medium text-gray-400 mb-1">{t('settings.location')}</label>
                                 <input type="text" name="location" value={formData.location} onChange={handleInputChange} className="w-full p-3 rounded-lg bg-gray-950 border border-gray-700 text-white" />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-400 mb-1">Website</label>
+                                <label className="block text-sm font-medium text-gray-400 mb-1">{t('settings.website')}</label>
                                 <input type="text" name="website" value={formData.website} onChange={handleInputChange} className="w-full p-3 rounded-lg bg-gray-950 border border-gray-700 text-white" />
                             </div>
                         </div>
@@ -179,7 +181,7 @@ export default function SettingsPage() {
                         <div className="flex justify-end pt-4">
                             <button type="submit" disabled={saving} className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-lg font-bold transition flex items-center gap-2">
                                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                Kaydet
+                                {t('settings.save')}
                             </button>
                         </div>
                     </form>
@@ -188,7 +190,7 @@ export default function SettingsPage() {
                 {/* --- 2. GÖRÜNÜM AYARLARI --- */}
                 {activeTab === 'appearance' && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <h2 className="text-xl font-bold border-b border-gray-800 pb-4 mb-6">Uygulama Teması</h2>
+                        <h2 className="text-xl font-bold border-b border-gray-800 pb-4 mb-6">{t('settings.appTheme')}</h2>
                         
                         <div className="grid grid-cols-3 gap-4">
                             <button 
@@ -196,7 +198,7 @@ export default function SettingsPage() {
                                 className={`p-4 rounded-xl border-2 flex flex-col items-center gap-3 transition ${theme === 'dark' ? 'border-blue-500 bg-blue-500/10' : 'border-gray-700 hover:border-gray-600'}`}
                             >
                                 <Moon className="w-8 h-8 text-blue-400" />
-                                <span className="font-medium">Karanlık</span>
+                                <span className="font-medium">{t('settings.dark')}</span>
                             </button>
 
                             <button 
@@ -204,12 +206,12 @@ export default function SettingsPage() {
                                 className={`p-4 rounded-xl border-2 flex flex-col items-center gap-3 transition ${theme === 'light' ? 'border-blue-500 bg-blue-500/10' : 'border-gray-700 hover:border-gray-600'}`}
                             >
                                 <Sun className="w-8 h-8 text-yellow-400" />
-                                <span className="font-medium">Aydınlık</span>
+                                <span className="font-medium">{t('settings.light')}</span>
                             </button>
 
                             <button className="p-4 rounded-xl border-2 border-gray-700 opacity-50 cursor-not-allowed flex flex-col items-center gap-3">
                                 <Smartphone className="w-8 h-8 text-gray-400" />
-                                <span className="font-medium">Sistem</span>
+                                <span className="font-medium">{t('settings.system')}</span>
                             </button>
                         </div>
                     </div>
@@ -218,10 +220,10 @@ export default function SettingsPage() {
                 {/* --- 3. BİLDİRİM AYARLARI --- */}
                 {activeTab === 'notifications' && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <h2 className="text-xl font-bold border-b border-gray-800 pb-4 mb-6">Bildirim Tercihleri</h2>
+                        <h2 className="text-xl font-bold border-b border-gray-800 pb-4 mb-6">{t('settings.notificationPrefs')}</h2>
                         
                         <div className="space-y-4">
-                            {['Biri beni takip ettiğinde', 'Yorumlarıma cevap geldiğinde', 'Haftalık bülten'].map((item, i) => (
+                            {[t('settings.notifFollow'), t('settings.notifReply'), t('settings.notifNewsletter')].map((item, i) => (
                                 <div key={i} className="flex items-center justify-between p-3 bg-gray-950 rounded-lg border border-gray-800">
                                     <span className="text-gray-300">{item}</span>
                                     <div className="w-10 h-6 bg-blue-600 rounded-full relative cursor-pointer">
@@ -236,21 +238,64 @@ export default function SettingsPage() {
                 {/* --- 4. HESAP AYARLARI --- */}
                 {activeTab === 'account' && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <h2 className="text-xl font-bold border-b border-gray-800 pb-4 mb-6">Hesap Yönetimi</h2>
+                        <h2 className="text-xl font-bold border-b border-gray-800 pb-4 mb-6">{t('settings.accountManagement')}</h2>
                         
                         <div className="p-4 border border-red-900/50 bg-red-900/10 rounded-xl">
                             <h3 className="text-red-400 font-bold mb-2 flex items-center gap-2">
-                                <Trash2 className="w-5 h-5" /> Hesabı Sil
+                                <Trash2 className="w-5 h-5" /> {t('settings.deleteAccount')}
                             </h3>
                             <p className="text-sm text-red-200/70 mb-4">
-                                Hesabını silersen tüm kitapların, yorumların ve verilerin kalıcı olarak silinir. Bu işlem geri alınamaz.
+                                {t('settings.deleteAccountWarning')}
                             </p>
                             <button 
-                                onClick={() => alert("Bu özellik şu an devre dışı (Güvenlik nedeniyle).")}
+                                onClick={() => alert(t('settings.deleteDisabled'))}
                                 className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-bold transition"
                             >
-                                Hesabımı Kalıcı Olarak Sil
+                                {t('settings.deleteAccountButton')}
                             </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* --- 5. DİL AYARLARI --- */}
+                {activeTab === 'language' && (
+                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <h2 className="text-xl font-bold border-b border-gray-800 pb-4 mb-6">{t('settings.languageSettings')}</h2>
+                        
+                        <div className="space-y-4">
+                            <p className="text-gray-400 text-sm">{t('settings.selectLanguage')}</p>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                                <button 
+                                    onClick={() => setLanguage('tr')}
+                                    className={`p-4 rounded-xl border-2 flex items-center gap-4 transition ${
+                                        language === 'tr' 
+                                            ? 'border-blue-500 bg-blue-500/10' 
+                                            : 'border-gray-700 hover:border-gray-600'
+                                    }`}
+                                >
+                                    <span className="text-3xl">TR</span>
+                                    <div className="text-left">
+                                        <p className="font-bold text-white">{t('settings.turkish')}</p>
+                                        <p className="text-xs text-gray-400">Türkçe</p>
+                                    </div>
+                                </button>
+
+                                <button 
+                                    onClick={() => setLanguage('en')}
+                                    className={`p-4 rounded-xl border-2 flex items-center gap-4 transition ${
+                                        language === 'en' 
+                                            ? 'border-blue-500 bg-blue-500/10' 
+                                            : 'border-gray-700 hover:border-gray-600'
+                                    }`}
+                                >
+                                    <span className="text-3xl">EN</span>
+                                    <div className="text-left">
+                                        <p className="font-bold text-white">{t('settings.english')}</p>
+                                        <p className="text-xs text-gray-400">English</p>
+                                    </div>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}

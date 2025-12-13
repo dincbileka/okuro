@@ -3,9 +3,11 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "@/lib/LanguageContext";
 
 export default function BookActions({ book }: { book: any }) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
@@ -39,7 +41,7 @@ export default function BookActions({ book }: { book: any }) {
   // --- LİSTEYE EKLEME ---
   const handleSave = async () => {
     if (!user) {
-      if (confirm("Listenize eklemek için giriş yapmalısınız. Giriş sayfasına gidilsin mi?")) router.push("/login");
+      if (confirm(t('bookActions.loginToAdd'))) router.push("/login");
       return;
     }
 
@@ -84,8 +86,8 @@ export default function BookActions({ book }: { book: any }) {
       setStatus('want_to_read');
 
     } catch (error: any) {
-      console.error("Hata:", error);
-      alert("Hata: " + error.message);
+      console.error("Error:", error);
+      alert(t('common.error') + ": " + error.message);
     } finally {
       setLoading(false);
     }
@@ -94,7 +96,7 @@ export default function BookActions({ book }: { book: any }) {
   // --- FAVORİ (KALP) ---
   const handleToggleFavorite = async () => {
     if (!user) {
-      if (confirm("Favorilere eklemek için giriş yapmalısınız. Giriş sayfasına gidilsin mi?")) router.push("/login");
+      if (confirm(t('bookActions.loginToFavorite'))) router.push("/login");
       return;
     }
 
@@ -140,8 +142,8 @@ export default function BookActions({ book }: { book: any }) {
       setIsFavorite(newFavStatus);
 
     } catch (error: any) {
-      console.error("Favori hatası:", error);
-      alert("Hata: " + error.message);
+      console.error("Favorite error:", error);
+      alert(t('common.error') + ": " + error.message);
     } finally {
       setFavLoading(false);
     }
@@ -161,7 +163,7 @@ export default function BookActions({ book }: { book: any }) {
           ${loading ? "opacity-70 cursor-not-allowed" : ""}
         `}
       >
-        {loading ? "..." : status ? <>✓ Rafınızda Ekli</> : <>📚 Listeme Ekle</>}
+        {loading ? "..." : status ? <>✓ {t('bookActions.onShelf')}</> : <>📚 {t('bookActions.addToList')}</>}
       </button>
 
       {/* ❤️ FAVORİ BUTONU */}

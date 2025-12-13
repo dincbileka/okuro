@@ -5,6 +5,7 @@ import { Target, Settings, LogOut, User, BookOpen } from 'lucide-react';
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import Link from 'next/link';
+import { useTranslation } from "@/lib/LanguageContext";
 
 interface Profile {
   full_name: string | null;
@@ -14,6 +15,7 @@ interface Profile {
 
 export const SidebarLeft = () => {
   const router = useRouter();
+  const { t } = useTranslation();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ books: 0, reading: 0, done: 0 });
@@ -59,7 +61,7 @@ export const SidebarLeft = () => {
   };
 
   if (loading) {
-    return <div className="p-6 text-gray-500 text-sm animate-pulse">Profil yükleniyor...</div>;
+    return <div className="p-6 text-gray-500 text-sm animate-pulse">{t('sidebar.profileLoading')}</div>;
   }
 
   const displayName = profile?.full_name || profile?.email?.split('@')[0] || "Misafir";
@@ -94,7 +96,7 @@ export const SidebarLeft = () => {
               : "bg-gray-800 text-blue-300 border-gray-700"
             }`}
           >
-            {isAdmin ? "🛡️ System Admin" : "Kitap Kurdu 📚"}
+            {isAdmin ? t('sidebar.systemAdmin') : t('sidebar.bookworm')}
           </div>
         </Link>
 
@@ -102,15 +104,15 @@ export const SidebarLeft = () => {
         <div className="mt-6 grid grid-cols-3 gap-2 text-center border-t border-gray-800 pt-4">
           <div>
             <div className="text-lg font-bold text-white">{stats.books}</div>
-            <div className="text-xs text-gray-500">Toplam</div>
+            <div className="text-xs text-gray-500">{t('sidebar.total')}</div>
           </div>
           <div>
             <div className="text-lg font-bold text-white">{stats.reading}</div>
-            <div className="text-xs text-gray-500">Okuyor</div>
+            <div className="text-xs text-gray-500">{t('sidebar.reading')}</div>
           </div>
           <div>
             <div className="text-lg font-bold text-white">{stats.done}</div>
-            <div className="text-xs text-gray-500">Bitti</div>
+            <div className="text-xs text-gray-500">{t('sidebar.finished')}</div>
           </div>
         </div>
       </div>
@@ -119,7 +121,7 @@ export const SidebarLeft = () => {
       <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800 shadow-lg">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
-            <Target className="h-4 w-4 text-blue-500" /> 2025 Hedefi
+            <Target className="h-4 w-4 text-blue-500" /> {t('sidebar.yearGoal')}
           </h3>
           <span className="text-xs text-gray-400">40%</span>
         </div>
@@ -127,26 +129,24 @@ export const SidebarLeft = () => {
           <div className="bg-gradient-to-r from-blue-500 to-purple-500 h-2.5 rounded-full" style={{ width: `40%` }}></div>
         </div>
         <p className="text-xs text-gray-400">
-          Hedefine emin adımlarla ilerliyorsun!
+          {t('sidebar.goalProgress')}
         </p>
       </div>
 
       {/* Menü Linkleri */}
-      {/* Menü Linkleri */}
       <div className="space-y-2">
-        {/* DÜZELTME: Ayarlar (Button -> Link) */}
         <Link 
             href="/settings"
             className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition w-full"
         >
-          <Settings className="h-5 w-5" /> Ayarlar
+          <Settings className="h-5 w-5" /> {t('sidebar.settings')}
         </Link>
         
         <button 
           onClick={handleLogout}
           className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-xl transition"
         >
-          <LogOut className="h-5 w-5" /> Çıkış Yap
+          <LogOut className="h-5 w-5" /> {t('sidebar.logout')}
         </button>
       </div>
 

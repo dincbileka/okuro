@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useTranslation } from "@/lib/LanguageContext";
 
 interface ReviewModalProps {
   isOpen: boolean;
@@ -44,7 +45,7 @@ export default function ReviewModal({
   bookTitle,
   onReviewSaved,
 }: ReviewModalProps) {
-  // --- HOOKS (Sadece burada tanımlanır) ---
+  const { t } = useTranslation();
   const [rating, setRating] = useState(initialRating);
   const [notes, setNotes] = useState(initialNotes);
   const [loading, setLoading] = useState(false);
@@ -90,13 +91,12 @@ export default function ReviewModal({
 
       if (error) throw error;
 
-      alert("İnceleme başarıyla kaydedildi!");
-      onReviewSaved(rating === 0 ? null : rating, notes); // Ana sayfayı güncelle ve modali kapat
-      // onClose(); // Modalı kapatma işini onReviewSaved'e verdik.
+      alert(t('reviewModal.saved'));
+      onReviewSaved(rating === 0 ? null : rating, notes);
 
     } catch (error: any) {
-      console.error("İnceleme kaydetme hatası:", error);
-      alert("İnceleme kaydedilirken bir hata oluştu: " + error.message);
+      console.error("Review save error:", error);
+      alert(t('reviewModal.saveError') + ": " + error.message);
     } finally {
       setLoading(false);
     }
@@ -113,7 +113,7 @@ export default function ReviewModal({
         {/* Başlık ve Kapat Butonu */}
         <div className="flex justify-between items-start border-b border-gray-700 pb-4 mb-6">
             <h2 className="text-2xl font-bold text-white">
-                İncelemeni Ekle
+                {t('reviewModal.title')}
             </h2>
             <button onClick={onClose} className="text-gray-400 hover:text-white transition text-3xl leading-none">
                 &times;
@@ -128,7 +128,7 @@ export default function ReviewModal({
         {/* Puanlama Alanı */}
         <div className="mb-8">
           <label className="block text-sm font-medium text-gray-400 mb-3">
-            Puanın (1-5)
+            {t('reviewModal.ratingLabel')}
           </label>
           <StarRating rating={rating} onRatingChange={setRating} />
         </div>
@@ -136,7 +136,7 @@ export default function ReviewModal({
         {/* Not Alanı */}
         <div className="mb-8">
           <label htmlFor="notes" className="block text-sm font-medium text-gray-400 mb-2">
-            Kişisel Notların
+            {t('reviewModal.notesLabel')}
           </label>
           <textarea
             id="notes"
@@ -144,7 +144,7 @@ export default function ReviewModal({
             value={notes || ""}
             onChange={(e) => setNotes(e.target.value)}
             className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-blue-500 focus:border-blue-500 transition resize-y"
-            placeholder="Kitap hakkında ne düşündün? En sevdiğin alıntılar..."
+            placeholder={t('reviewModal.notesPlaceholder')}
           />
         </div>
 
@@ -160,10 +160,10 @@ export default function ReviewModal({
             {loading ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Kaydediliyor...
+                {t('reviewModal.saving')}
               </>
             ) : (
-              "Kaydet"
+              t('common.save')
             )}
           </button>
         </div>

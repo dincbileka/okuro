@@ -6,15 +6,17 @@ import BookCard from "@/components/BookCard";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ReviewModal from "@/components/ReviewModal";
-// Global tipleri kullanıyoruz
 import { UserBook, BookStatus } from "@/types";
+import { useTranslation } from "@/lib/LanguageContext";
 
 export default function LibraryPage() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [myBooks, setMyBooks] = useState<UserBook[]>([]); 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedBook, setSelectedBook] = useState<UserBook | null>(null);
+  const [activeFilter, setActiveFilter] = useState<string | null>(null);
 
   const fetchLibrary = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -46,16 +48,15 @@ export default function LibraryPage() {
 
   const handleStatusChange = async (recordId: number | string, newStatus: string) => {
     if (newStatus === "remove") {
-      const confirmDelete = confirm("Bu kitabı listenizden kaldırmak istediğinize emin misiniz?");
+      const confirmDelete = confirm(t('library.confirmRemove'));
       if (!confirmDelete) return;
 
       const { error } = await supabase.from("user_books").delete().eq("id", recordId);
       
       if (!error) {
-        // ID karşılaştırmasında String() kullanarak tür uyuşmazlığını önlüyoruz
         setMyBooks((prev) => prev.filter((item) => String(item.id) !== String(recordId)));
       } else {
-        alert("Silinirken hata oluştu.");
+        alert(t('library.removeError'));
       }
       return;
     }
@@ -68,14 +69,12 @@ export default function LibraryPage() {
     if (!error) {
       setMyBooks((prev) =>
         prev.map((item) =>
-          // Status güncellemesini arayüze anında yansıtıyoruz
-          // 'as BookStatus' diyerek TypeScript'e güven veriyoruz
           String(item.id) === String(recordId) ? { ...item, status: newStatus as BookStatus } : item
         )
       );
     } else {
       console.error("Durum güncelleme hatası:", error);
-      alert("Durum güncellenemedi.");
+      alert(t('library.statusUpdateError'));
     }
   };
 
@@ -110,7 +109,7 @@ export default function LibraryPage() {
         <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
             <div className="flex flex-col items-center gap-4">
             <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-blue-400 animate-pulse">Yükleniyor...</p>
+            <p className="text-blue-400 animate-pulse">{t('common.loading')}</p>
             </div>
         </div>
     );
@@ -120,38 +119,120 @@ export default function LibraryPage() {
     <div className="min-h-screen bg-gray-950 text-white p-4 md:p-8">
       <main className="max-w-6xl mx-auto">
         
-        <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4 border-b border-gray-800 pb-6">
+        <div className="flex flex-col md:flex-row items-center justify-between mb-6 gap-4 border-b border-gray-800 pb-6">
           <div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-green-400 to-blue-500 bg-clip-text text-transparent">
-              Kütüphanem
+              {t('library.title')}
             </h1>
-            <p className="text-gray-400 text-sm mt-1">Okuma serüveninin kontrol paneli</p>
+            <p className="text-gray-400 text-sm mt-1">{t('library.subtitle')}</p>
           </div>
           
           <div className="flex items-center gap-4 bg-gray-800 px-4 py-2 rounded-full border border-gray-700">
-            <span className="text-sm text-gray-400">Toplam Kitap:</span>
+            <span className="text-sm text-gray-400">{t('library.totalBooks')}:</span>
             <span className="text-white font-bold text-lg">{myBooks.length}</span>
           </div>
+        </div>
+
+        {/* Statü Sayaçları - Tıklanabilir Filtreler */}
+        <div className="flex flex-wrap items-center justify-center gap-4 mb-8">
+          {/* Tümü */}
+          <button
+            onClick={() => setActiveFilter(null)}
+            className={`flex items-center gap-3 px-5 py-3 rounded-xl border transition-all cursor-pointer ${
+              activeFilter === null 
+                ? 'bg-purple-500/20 border-purple-500 ring-2 ring-purple-500/50 scale-105' 
+                : 'bg-purple-500/10 border-purple-500/30 hover:bg-purple-500/20'
+            }`}
+          >
+            <span className="text-2xl">📚</span>
+            <div>
+              <p className="text-purple-400 font-bold text-xl">{myBooks.length}</p>
+              <p className="text-purple-400/70 text-xs font-medium">{t('library.all')}</p>
+            </div>
+          </button>
+
+          {/* Okunacak */}
+          <button
+            onClick={() => setActiveFilter('want_to_read')}
+            className={`flex items-center gap-3 px-5 py-3 rounded-xl border transition-all cursor-pointer ${
+              activeFilter === 'want_to_read' 
+                ? 'bg-yellow-500/20 border-yellow-500 ring-2 ring-yellow-500/50 scale-105' 
+                : 'bg-yellow-500/10 border-yellow-500/30 hover:bg-yellow-500/20'
+            }`}
+          >
+            <span className="text-2xl">⏳</span>
+            <div>
+              <p className="text-yellow-500 font-bold text-xl">{myBooks.filter(b => (b.status as unknown as string) === 'want_to_read').length}</p>
+              <p className="text-yellow-500/70 text-xs font-medium">{t('library.wantToRead')}</p>
+            </div>
+          </button>
+          
+          {/* Okuyorum */}
+          <button
+            onClick={() => setActiveFilter('reading')}
+            className={`flex items-center gap-3 px-5 py-3 rounded-xl border transition-all cursor-pointer ${
+              activeFilter === 'reading' 
+                ? 'bg-blue-500/20 border-blue-500 ring-2 ring-blue-500/50 scale-105' 
+                : 'bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/20'
+            }`}
+          >
+            <span className="text-2xl">📖</span>
+            <div>
+              <p className="text-blue-400 font-bold text-xl">{myBooks.filter(b => (b.status as unknown as string) === 'reading').length}</p>
+              <p className="text-blue-400/70 text-xs font-medium">{t('library.reading')}</p>
+            </div>
+          </button>
+          
+          {/* Bitti */}
+          <button
+            onClick={() => setActiveFilter('finished')}
+            className={`flex items-center gap-3 px-5 py-3 rounded-xl border transition-all cursor-pointer ${
+              activeFilter === 'finished' 
+                ? 'bg-green-500/20 border-green-500 ring-2 ring-green-500/50 scale-105' 
+                : 'bg-green-500/10 border-green-500/30 hover:bg-green-500/20'
+            }`}
+          >
+            <span className="text-2xl">✅</span>
+            <div>
+              <p className="text-green-400 font-bold text-xl">{myBooks.filter(b => (b.status as unknown as string) === 'finished').length}</p>
+              <p className="text-green-400/70 text-xs font-medium">{t('library.finished')}</p>
+            </div>
+          </button>
         </div>
 
         {myBooks.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 bg-gray-800/30 rounded-3xl border border-dashed border-gray-700">
             <div className="text-6xl mb-4">📚</div>
-            <p className="text-2xl text-gray-300 font-semibold mb-2">Henüz rafında kitap yok</p>
+            <p className="text-2xl text-gray-300 font-semibold mb-2">{t('library.noBooks')}</p>
             <Link 
               href="/" 
               className="px-8 py-3 bg-blue-600 hover:bg-blue-700 rounded-xl font-bold transition shadow-lg shadow-blue-900/40 flex items-center gap-2 mt-8"
             >
-              <span>🔍</span> Kitap Ara ve Ekle
+              <span>🔍</span> {t('library.searchAndAdd')}
             </Link>
           </div>
+        ) : myBooks.filter((item) => activeFilter === null || (item.status as unknown as string) === activeFilter).length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 bg-gray-800/30 rounded-3xl border border-dashed border-gray-700">
+            <div className="text-5xl mb-4">🔍</div>
+            <p className="text-xl text-gray-300 font-semibold mb-2">{t('library.noBooksInStatus')}</p>
+            <button 
+              onClick={() => setActiveFilter(null)}
+              className="px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-xl font-bold transition mt-4"
+            >
+              {t('library.showAll')}
+            </button>
+          </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {myBooks.map((item: UserBook) => (
-              <div key={item.id} className="relative group bg-gray-800 rounded-xl p-4 border border-gray-700 hover:border-blue-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-900/20">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 items-stretch">
+            {myBooks
+              .filter((item) => activeFilter === null || (item.status as unknown as string) === activeFilter)
+              .map((item: UserBook) => (
+              <div key={item.id} className="relative group bg-gray-800 rounded-xl p-4 border border-gray-700 hover:border-blue-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-900/20 flex flex-col h-full">
                 
                 {/* BookCard çağrısı */}
-                {item.book && <BookCard userBook={item} />}
+                <div className="flex-1">
+                  {item.book && <BookCard userBook={item} />}
+                </div>
 
                 <div className="flex justify-between items-center mt-4 pt-2 border-t border-gray-700">
                     <div className="flex items-center gap-3">
@@ -161,12 +242,12 @@ export default function LibraryPage() {
                                 <span className="text-sm text-gray-400">({item.rating}/5)</span>
                             </div>
                         ) : (
-                            <span className="text-sm text-gray-500">Puanlanmadı</span>
+                            <span className="text-sm text-gray-500">{t('library.notRated')}</span>
                         )}
                     </div>
 
                     {item.is_favorite && (
-                        <span className="text-red-500 text-2xl" title="Favori Kitabın">❤️</span>
+                        <span className="text-red-500 text-2xl" title={t('library.favoriteBook')}>❤️</span>
                     )}
                 </div>
                 
@@ -183,12 +264,11 @@ export default function LibraryPage() {
                         ${(item.status as unknown as string) === 'finished' ? 'bg-green-500/10 text-green-400 border-green-500/50 hover:bg-green-500/20' : ''}
                       `}
                     >
-                      {/* Option value'ları veritabanındaki (küçük harf) değerlerle aynı olmalı */}
-                      <option value="want_to_read" className="bg-gray-800 text-yellow-500">⏳ Okunacak</option>
-                      <option value="reading" className="bg-gray-800 text-blue-400">📖 Okuyorum</option>
-                      <option value="finished" className="bg-gray-800 text-green-400">✅ Bitti</option>
+                      <option value="want_to_read" className="bg-gray-800 text-yellow-500">⏳ {t('library.wantToRead')}</option>
+                      <option value="reading" className="bg-gray-800 text-blue-400">📖 {t('library.reading')}</option>
+                      <option value="finished" className="bg-gray-800 text-green-400">✅ {t('library.finished')}</option>
                       <option disabled>──────────</option>
-                      <option value="remove" className="bg-gray-800 text-red-400">🗑️ Listeden Kaldır</option>
+                      <option value="remove" className="bg-gray-800 text-red-400">🗑️ {t('library.removeFromList')}</option>
                     </select>
                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
                       <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
@@ -199,7 +279,7 @@ export default function LibraryPage() {
                     onClick={() => openReviewModal(item)}
                     className="px-4 py-1.5 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 rounded-lg text-white transition whitespace-nowrap"
                   >
-                    📝 İncele
+                    📝 {t('library.review')}
                   </button>
                 </div>
 

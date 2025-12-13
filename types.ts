@@ -84,3 +84,68 @@ export interface Activity {
   likes: number;
   comments: number;
 }
+
+// --- SOSYAL ÖZELLİKLER ---
+
+export type FriendshipStatus = 'pending' | 'accepted' | 'rejected' | 'blocked';
+
+export interface Friendship {
+  id: number;
+  requester_id: string;
+  addressee_id: string;
+  status: FriendshipStatus;
+  created_at: string;
+  updated_at: string;
+  // Join ile gelen profil bilgileri
+  requester?: {
+    id: string;
+    full_name: string;
+    email: string;
+    avatar_url: string;
+  };
+  addressee?: {
+    id: string;
+    full_name: string;
+    email: string;
+    avatar_url: string;
+  };
+}
+
+export interface BookRecommendation {
+  id: number;
+  sender_id: string;
+  receiver_id: string;
+  book_id: string;
+  message: string | null;
+  is_read: boolean;
+  created_at: string;
+  // Join ile gelen bilgiler
+  sender?: {
+    id: string;
+    full_name: string;
+    email: string;
+    avatar_url: string;
+  };
+  book?: Book;
+}
+
+export type NotificationType = 'friend_request' | 'friend_accepted' | 'book_recommendation' | 'book_rated';
+
+export interface SocialNotification {
+  id: number;
+  user_id: string;
+  type: NotificationType;
+  title: string;
+  message: string | null;
+  related_user_id: string | null;
+  related_book_id: string | null;
+  is_read: boolean;
+  created_at: string;
+  // Join ile gelen bilgiler
+  related_user?: {
+    id: string;
+    full_name: string;
+    avatar_url: string;
+  };
+  related_book?: Book;
+}

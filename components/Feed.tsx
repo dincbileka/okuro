@@ -3,9 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Heart, MessageSquare, Share2, MoreHorizontal, BookOpen, Star } from 'lucide-react';
 import { supabase } from "@/lib/supabaseClient";
-// Mock data yerine gerçek veri tiplerini kullanacağız ama
-// Activity tipini veritabanı verisine uydurmamız lazım.
-// Basitlik için burada yerel bir tip tanımı yapıyorum.
+import { useTranslation } from "@/lib/LanguageContext";
 
 interface FeedItem {
   id: number;
@@ -23,6 +21,7 @@ interface FeedItem {
 }
 
 export const Feed = () => {
+  const { t, language } = useTranslation();
   const [activities, setActivities] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState<string>("");
@@ -32,7 +31,7 @@ export const Feed = () => {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session) {
-        setUserEmail(session.user.email || "Kullanıcı");
+        setUserEmail(session.user.email || t('common.user'));
 
         // Sadece kendi hareketlerini çekelim (Şimdilik)
         const { data, error } = await supabase
@@ -56,7 +55,7 @@ export const Feed = () => {
   }, []);
 
   if (loading) {
-    return <div className="text-gray-500 text-center py-10 animate-pulse">Akış yükleniyor...</div>;
+    return <div className="text-gray-500 text-center py-10 animate-pulse">{t('feed.loading')}</div>;
   }
 
   return (
@@ -71,12 +70,12 @@ export const Feed = () => {
           <div className="flex-1">
             <input 
               type="text" 
-              placeholder="Bugün hangi dünyalara dalıyorsun?" 
+              placeholder={t('feed.placeholder')} 
               className="w-full bg-gray-900 border-none rounded-xl px-4 py-3 text-sm text-white focus:ring-2 focus:ring-blue-500/50"
             />
             <div className="flex justify-end items-center mt-3">
               <button className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition">
-                Paylaş
+                {t('feed.share')}
               </button>
             </div>
           </div>
@@ -85,19 +84,20 @@ export const Feed = () => {
 
       {/* Gerçek Akış */}
       {activities.length === 0 ? (
-        <div className="text-center text-gray-500 py-10">Henüz bir aktiviten yok. Kitap eklemeye başla!</div>
+        <div className="text-center text-gray-500 py-10">{t('feed.noActivity')}</div>
       ) : (
         activities.map((act) => (
-          <ActivityCard key={act.id} activity={act} userEmail={userEmail} />
+          <ActivityCard key={act.id} activity={act} userEmail={userEmail} language={language} />
         ))
       )}
     </div>
   );
 };
 
-const ActivityCard = ({ activity, userEmail }: { activity: FeedItem, userEmail: string }) => {
+const ActivityCard = ({ activity, userEmail, language }: { activity: FeedItem, userEmail: string, language: string }) => {
+  const { t } = useTranslation();
   const [liked, setLiked] = useState(false);
-  const [likes, setLikes] = useState(Math.floor(Math.random() * 10)); // Sahte beğeni sayısı (şimdilik)
+  const [likes, setLikes] = useState(Math.floor(Math.random() * 10));
 
   const handleLike = () => {
     if (liked) setLikes(likes - 1);
@@ -107,14 +107,22 @@ const ActivityCard = ({ activity, userEmail }: { activity: FeedItem, userEmail: 
 
   // Duruma göre metin ve renk
   const getStatusInfo = (status: string, rating: number | null) => {
-    if (rating) return { text: "bir kitabı puanladı", color: "text-yellow-400" };
-    if (status === 'finished') return { text: "bir kitabı bitirdi", color: "text-green-400" };
-    if (status === 'reading') return { text: "okumaya başladı", color: "text-blue-400" };
-    return { text: "listesine ekledi", color: "text-gray-400" };
+    if (rating) return { text: t('feed.ratedBook'), color: "text-yellow-400" };
+    if (status === 'finished') return { text: t('feed.finishedBook'), color: "text-green-400" };
+    if (status === 'reading') return { text: t('feed.startedReading'), color: "text-blue-400" };
+    return { text: t('feed.addedToList'), color: "text-gray-400" };
   };
 
   const statusInfo = getStatusInfo(activity.status, activity.rating);
-  const date = new Date(activity.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+  
+  // Dil bazında tarih formatı
+  const dateLocale = language === 'tr' ? 'tr-TR' : 'en-US';
+  const date = new Date(activity.created_at).toLocaleDateString(dateLocale, { 
+    day: 'numeric', 
+    month: 'long', 
+    hour: '2-digit', 
+    minute: '2-digit' 
+  });
 
   return (
     <div className="bg-gray-800 rounded-2xl p-6 border border-gray-700 shadow-lg hover:border-gray-600 transition duration-300">
@@ -139,7 +147,7 @@ const ActivityCard = ({ activity, userEmail }: { activity: FeedItem, userEmail: 
         {activity.book.cover_url ? (
              <img src={activity.book.cover_url} alt={activity.book.title} className="h-24 w-16 object-cover rounded shadow-md" />
         ) : (
-            <div className="h-24 w-16 bg-gray-700 rounded flex items-center justify-center text-xs">No Img</div>
+            <div className="h-24 w-16 bg-gray-700 rounded flex items-center justify-center text-xs">{t('feed.noImage')}</div>
         )}
        
         <div className="flex-1">
@@ -179,7 +187,7 @@ const ActivityCard = ({ activity, userEmail }: { activity: FeedItem, userEmail: 
           <MessageSquare className="h-4 w-4" /> 0
         </button>
         <button className="flex items-center gap-2 text-sm text-gray-400 hover:text-green-400 transition ml-auto">
-          <Share2 className="h-4 w-4" /> Paylaş
+          <Share2 className="h-4 w-4" /> {t('feed.share')}
         </button>
       </div>
 
